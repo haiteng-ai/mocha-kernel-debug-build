@@ -1,0 +1,84 @@
+name: Build mocha debug kernel
+
+on:
+  workflow_dispatch:
+
+env:
+  KERNEL_REPO: https://github.com/haiteng-ai/kernel_xiaomi_mocha-SmokeR24.1.git
+  KERNEL_BRANCH: SmokeR24.1-stable-q
+  DEFCONFIG: tegra12_android_defconfig
+  TC_NAME: gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libncurses5-dev libssl-dev xz-utils wget ca-certificates
+
+      - name: Download Linaro GCC 4.9.4-2017.01 toolchain
+        run: |
+          set -e
+          URLS="
+          https://releases.linaro.org/components/toolchain/binaries/4.9-2017.01/arm-linux-gnueabihf/$TC_NAME.tar.xz
+          https://dl.armbian.com/_toolchain/$TC_NAME.tar.xz
+          https://mirrors.dotsrc.org/armbian-dl/_toolchain/$TC_NAME.tar.xz
+          https://mirrors.aliyun.com/armbian-releases/_toolchain/$TC_NAME.tar.xz
+          https://mirrors.nju.edu.cn/armbian-releases/_toolchain/$TC_NAME.tar.xz
+          "
+          ok=0
+          for u in $URLS; do
+            echo "== Trying $u"
+            if curl -fL --connect-timeout 20 --max-time 900 -o tc.tar.xz "$u"; then
+              sz=$(stat -c%s tc.tar.xz)
+              magic=$(head -c6 tc.tar.xz | od -An -tx1 | tr -d ' \n')
+              echo "size=$sz magic=$magic"
+              if [ "$sz" -gt 50000000 ] && [ "$magic" = "fd377a585a0000" ]; then
+                ok=1
+                break
+              fi
+              echo "Bad download, trying next mirror"
+            fi
+          done
+          [ "$ok" = "1" ] || { echo "ERROR: all toolchain mirrors failed"; exit 1; }
+          tar xf tc.tar.xz
+          mv "$TC_NAME" toolchain
+          ./toolchain/bin/arm-linux-gnueabihf-gcc --version
+
+      - name: Clone kernel source
+        run: git clone --depth 1 -b "$KERNEL_BRANCH" "$KERNEL_REPO" kernel
+
+      - name: Show kernel commit
+        run: git -C kernel log --oneline -3
+
+      - name: Configure ($DEFCONFIG)
+        run: |
+          cd kernel
+          export ARCH=arm
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-"
+          export HOSTCFLAGS="-fcommon"
+          make "$DEFCONFIG"
+
+      - name: Build zImage + dtbs
+        run: |
+          set -o pipefail
+          cd kernel
+          export ARCH=arm
+          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-"
+          export HOSTCFLAGS="-fcommon"
+          make -j"$(nproc)" zImage dtbs 2>&1 | tee build.log
+
+      - name: Upload kernel artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mocha-debug-kernel
+          path: |
+            kernel/arch/arm/boot/zImage
+            kernel/arch/arm/boot/Image
+            kernel/arch/arm/boot/dts/*.dtb
+            kernel/.config
+            kernel/build.log
+          if-no-files-found: ignore
