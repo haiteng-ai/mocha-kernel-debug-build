@@ -35,7 +35,7 @@ jobs:
               sz=$(stat -c%s tc.tar.xz)
               magic=$(head -c6 tc.tar.xz | od -An -tx1 | tr -d ' \n')
               echo "size=$sz magic=$magic"
-              if [ "$sz" -gt 50000000 ] && [ "$magic" = "fd377a585a0000" ]; then
+              if [ "$sz" -gt 50000000 ] && [ "$magic" = "fd377a585a00" ]; then
                 ok=1
                 break
               fi
