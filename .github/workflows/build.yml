@@ -2,10 +2,19 @@ name: Build mocha debug kernel
 
 on:
   workflow_dispatch:
+    inputs:
+      kernel_repo:
+        description: "Kernel repo URL"
+        required: true
+        default: "https://github.com/haiteng-ai/kernel_xiaomi_mocha-SmokeR24.1.git"
+      kernel_branch:
+        description: "Kernel branch"
+        required: true
+        default: "SmokeR24.1-v353-debug"
 
 env:
-  KERNEL_REPO: https://github.com/haiteng-ai/kernel_xiaomi_mocha-SmokeR24.1.git
-  KERNEL_BRANCH: SmokeR24.1-v353-debug
+  KERNEL_REPO: ${{ inputs.kernel_repo }}
+  KERNEL_BRANCH: ${{ inputs.kernel_branch }}
   TC_NAME: gcc-linaro-4.9.4-2017.01-x86_64_arm-linux-gnueabihf
 
 jobs:
