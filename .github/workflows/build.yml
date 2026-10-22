@@ -56,19 +56,20 @@ jobs:
       - name: Configure ($DEFCONFIG)
         run: |
           cd kernel
-          export ARCH=arm
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-"
-          export HOSTCFLAGS="-fcommon"
-          make "$DEFCONFIG"
+          make ARCH=arm \
+               CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-" \
+               HOSTCFLAGS="-Wall -O2 -fomit-frame-pointer -std=gnu89 -fcommon" \
+               "$DEFCONFIG"
 
       - name: Build zImage + dtbs
         run: |
           set -o pipefail
           cd kernel
-          export ARCH=arm
-          export CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-"
-          export HOSTCFLAGS="-fcommon"
-          make -j"$(nproc)" zImage dtbs 2>&1 | tee build.log
+          make -j"$(nproc)" \
+               ARCH=arm \
+               CROSS_COMPILE="$GITHUB_WORKSPACE/toolchain/bin/arm-linux-gnueabihf-" \
+               HOSTCFLAGS="-Wall -O2 -fomit-frame-pointer -std=gnu89 -fcommon" \
+               zImage dtbs 2>&1 | tee build.log
 
       - name: Upload kernel artifacts
         if: always()
